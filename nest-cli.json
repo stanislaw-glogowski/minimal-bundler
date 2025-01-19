@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": true
+  },
+  "projects": {
+    "entry-point": {
+      "type": "library",
+      "root": "libs/entry-point",
+      "entryFile": "index",
+      "sourceRoot": "libs/entry-point/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/entry-point/tsconfig.lib.json"
+      }
+    },
+    "logger": {
+      "type": "library",
+      "root": "libs/logger",
+      "entryFile": "index",
+      "sourceRoot": "libs/logger/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/logger/tsconfig.lib.json"
+      }
+    },
+    "network": {
+      "type": "library",
+      "root": "libs/network",
+      "entryFile": "index",
+      "sourceRoot": "libs/network/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/network/tsconfig.lib.json"
+      }
+    },
+    "relayer": {
+      "type": "library",
+      "root": "libs/relayer",
+      "entryFile": "index",
+      "sourceRoot": "libs/relayer/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/relayer/tsconfig.lib.json"
+      }
+    },
+    "transaction": {
+      "type": "library",
+      "root": "libs/transaction",
+      "entryFile": "index",
+      "sourceRoot": "libs/transaction/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/transaction/tsconfig.lib.json"
+      }
+    },
+    "utils": {
+      "type": "library",
+      "root": "libs/utils",
+      "entryFile": "index",
+      "sourceRoot": "libs/utils/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/utils/tsconfig.lib.json"
+      }
+    }
+  }
+}
