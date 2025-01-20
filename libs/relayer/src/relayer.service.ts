@@ -345,6 +345,10 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
 
     const gasPrice = await this.getGasPrice();
 
+    if (!gasPrice) {
+      return;
+    }
+
     const { transactionGasMultiplier } = this.config;
 
     for (const transaction of transactions) {
@@ -475,6 +479,10 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     }
 
     const gasPrice = await this.getGasPrice();
+
+    if (!gasPrice) {
+      return;
+    }
 
     for (const transaction of transactions) {
       try {
@@ -726,12 +734,26 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    return {
+    let result: {
+      chainId: number;
+      nonce?: number;
+      from?: Hash;
+      to: Hash;
+      data: Hash;
+    } = {
       chainId,
-      nonce: sender?.nonce,
-      from: sender?.address,
       to,
       data,
     };
+
+    if (sender) {
+      result = {
+        ...result,
+        nonce: sender.nonce,
+        from: sender.address,
+      };
+    }
+
+    return result;
   }
 }
