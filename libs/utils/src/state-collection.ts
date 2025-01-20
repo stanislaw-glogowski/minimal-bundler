@@ -5,6 +5,12 @@ export interface StateCollectionItem<S extends string = string> {
   state: S;
 }
 
+/**
+ * Represents a collection of stateful items with a unique key. Provides methods for managing items,
+ * subscribing to updates, and handling events related to their states.
+ *
+ * @template I The type of items stored in the collection. Must extend `StateCollectionItem`.
+ */
 export class StateCollection<I extends StateCollectionItem> {
   readonly items: Array<I> = [];
 

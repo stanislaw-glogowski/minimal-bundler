@@ -12,6 +12,8 @@ export async function main() {
 
   const accountMinBalance = parseEther(DEMO_EOA_MIN_BALANCE || '0.005');
 
+  // 1. Call Example RPC methods
+
   console.log('`eth_chainId`:', await callBundler('eth_chainId'));
   console.log(
     '`eth_supportedEntryPoints`:',
@@ -25,6 +27,8 @@ export async function main() {
     value: parseEther(DEMO_TX_VALUE || '0'),
   };
 
+  // 2. Send UserOperation from multiple Smart Accounts
+
   for (const account of accounts) {
     console.log();
 
@@ -32,11 +36,11 @@ export async function main() {
     const balance = await account.getBalances();
 
     if (balance?.at(0)?.amount < accountMinBalance) {
-      console.log('# Not enough balance in SCA:', address);
+      console.log('Not enough balance in SCA:', address);
       continue;
     }
 
-    console.log('# Sending UserOperation from SCA:', address);
+    console.log('Sending UserOperation from SCA:', address);
 
     const userOp = await account.buildUserOp([tx]);
     const signedUserOp = await account.signUserOp(userOp);
@@ -55,4 +59,14 @@ export async function main() {
       ),
     );
   }
+
+  // 3. Send raw transaction
+
+  console.log();
+  console.log('Sending and waiting for raw transaction to complete...');
+
+  console.log(
+    '`debug_sendTransaction`:',
+    await callBundler('debug_sendTransaction', DEMO_TX_RECIPIENT, '0x', true),
+  );
 }

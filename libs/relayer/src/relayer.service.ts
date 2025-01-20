@@ -19,11 +19,36 @@ import {
 } from './interfaces';
 import { relayerConfig } from './relayer.config';
 
+/**
+ * The RelayerService class provides services for managing relayer accounts and transactions
+ * for a blockchain network. It ensures account state management, transaction lifecycle handling,
+ * and interaction with blockchain network services.
+ */
 @Injectable()
 export class RelayerService implements OnModuleInit, OnModuleDestroy {
-  readonly accounts = new StateCollection<RelayerAccount>('address');
+  /**
+   * Represents a collection of relayer accounts, indexed by their respective address.
+   *
+   * The `accounts` variable utilizes the `StateCollection` data structure to manage
+   * and manipulate a set of `RelayerAccount` objects, which are indexed using the
+   * unique 'address' identifier. This ensures efficient lookup, retrieval, and operations
+   * on relayer account instances.
+   *
+   * @type {StateCollection<RelayerAccount>}
+   */
+  readonly accounts: StateCollection<RelayerAccount> =
+    new StateCollection<RelayerAccount>('address');
 
-  readonly transactions = new StateCollection<RelayerTransaction>('id');
+  /**
+   * Represents a collection of relayer transactions managed in a stateful way.
+   *
+   * @type {StateCollection<RelayerTransaction>}
+   * @description The `transactions` variable holds a collection of `RelayerTransaction`
+   * entities, managed as a state collection. Each transaction is uniquely identified
+   * by the property `id` within this collection.
+   */
+  readonly transactions: StateCollection<RelayerTransaction> =
+    new StateCollection<RelayerTransaction>('id');
 
   constructor(
     @Inject(relayerConfig.KEY)
@@ -55,7 +80,16 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async onModuleInit() {
+  /**
+   * Initializes the module by setting up event listeners and processing tasks.
+   * This method is executed asynchronously, ensuring that the required processes
+   * such as fetching accounts and processing transactions are locked and properly
+   * bound. It subscribes to relevant events within the system to trigger
+   * specific actions.
+   *
+   * @return {Promise<void>} A promise that resolves once the module has been successfully initialized.
+   */
+  async onModuleInit(): Promise<void> {
     const fetchAccounts = this.logger.lockAsync(
       this.fetchAccounts.bind(this), //
     );
@@ -82,7 +116,14 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     await this.fetchAccounts();
   }
 
-  onModuleDestroy() {
+  /**
+   * Executes cleanup logic when the module is being destroyed.
+   * Removes all listeners associated with accounts and transactions
+   * to ensure proper resource management and prevent memory leaks.
+   *
+   * @return {void} No return value.
+   */
+  onModuleDestroy(): void {
     this.accounts.off();
     this.transactions.off();
   }
@@ -91,9 +132,19 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     return this.formatAccounts(this.accounts.items);
   }
 
-  async fetchAccounts() {
+  /**
+   * Fetches accounts that are marked as 'drained' or 'unknown' and updates their state.
+   *
+   * For accounts marked as 'drained', it fetches account details and logs them if updates are made.
+   * For accounts marked as 'unknown', it retrieves the nonce if not already present,
+   * updates their state, and fetches account information. Logs updates if applicable.
+   *
+   * @return {Promise<void>} A promise that resolves once all account fetching operations are completed.
+   */
+  async fetchAccounts(): Promise<void> {
     let accounts = this.accounts.getStateItems('drained');
 
+    // drained accounts
     if (accounts.length) {
       this.logger.verbose(`Fetching drained accounts (${accounts.length})`);
 
@@ -110,6 +161,7 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
 
     accounts = this.accounts.getStateItems('unknown');
 
+    // unknown accounts
     if (accounts.length) {
       this.logger.verbose(`Fetching unknown accounts (${accounts.length})`);
 
@@ -142,7 +194,18 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async fetchAccount(account: RelayerAccount, updated: RelayerAccount[]) {
+  /**
+   * Fetches and updates the state and balance of a given account based on its current balance
+   * and predefined minimum account balance.
+   *
+   * @param {RelayerAccount} account - The account object containing information about the address, state, and balance.
+   * @param {RelayerAccount[]} updated - An array to store updated account objects after processing.
+   * @return {Promise<void>} A promise that resolves when the account fetching and updating process is complete.
+   */
+  async fetchAccount(
+    account: RelayerAccount,
+    updated: RelayerAccount[],
+  ): Promise<void> {
     const { address, state, balance: currentBalance } = account;
 
     const { minAccountBalance } = this.config;
@@ -177,7 +240,13 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  submitTransaction(params: RelayerTransactionParams) {
+  /**
+   * Submits a new transaction to the transaction queue.
+   *
+   * @param {RelayerTransactionParams} params - The parameters of the transaction, including type, state, and other required details.
+   * @return {number} The unique identifier for the submitted transaction.
+   */
+  submitTransaction(params: RelayerTransactionParams): number {
     const id = autoId();
 
     const { type } = params;
@@ -194,7 +263,14 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     return id;
   }
 
-  waitForTransaction(id: number) {
+  /**
+   * Waits for a transaction with the specified ID to complete or fail.
+   *
+   * @param {number} id - The unique identifier of the transaction to wait for.
+   * @return {Promise<RelayerTransaction>} A promise that resolves with the transaction object if completed successfully,
+   * or rejects with an error if the transaction fails or times out.
+   */
+  waitForTransaction(id: number): Promise<RelayerTransaction> {
     const { transactionWaitingTimeout } = this.config;
 
     return new Promise<RelayerTransaction>((resolve, reject) => {
@@ -211,12 +287,18 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
         )
         .subscribe({
           next: (item) => resolve(item),
-          error: () => reject(new Error(`Transaction #${id} timeout`)),
+          error: () => reject(new Error('Timeout')), // handled in rpc
         });
     });
   }
 
-  dropQueuedTransactions() {
+  /**
+   * Drops queued transactions that have exceeded the allowed drop time.
+   * Updates the state of each dropped transaction to 'dropped' and logs the action.
+   *
+   * @return {void} Does not return a value.
+   */
+  dropQueuedTransactions(): void {
     const { queuedTransactionDropTime } = this.config;
 
     const maxTimestamp = Date.now() + queuedTransactionDropTime * 1000;
@@ -240,7 +322,18 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async processQueuedTransactions() {
+  /**
+   * Processes queued transactions by iteratively estimating gas, determining costs,
+   * finding eligible sender accounts, signing, and sending the transaction to the network.
+   * Updates transaction and account states accordingly. If any issues occur during the process
+   * (e.g., gas estimation failure or transaction rejection), the respective transaction is
+   * marked as reverted.
+   *
+   * @return {Promise<void>} Resolves once all queued transactions are processed or skipped
+   *                         if no eligible transactions/accounts are found.
+   */
+  async processQueuedTransactions(): Promise<void> {
+    // drop expired
     this.dropQueuedTransactions();
 
     const transactions = this.transactions.getStateItems('queued');
@@ -291,6 +384,7 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
 
       let sender: RelayerAccount | undefined;
 
+      // looking for a sender
       for (const account of accounts) {
         if (account.balance >= cost) {
           sender = account;
@@ -306,6 +400,7 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
 
       let hash: Hash | undefined;
 
+      // sending transaction
       try {
         const serializedTransaction = await hdAccount.signTransaction({
           ...this.buildTransactionRequest(transaction, sender),
@@ -355,47 +450,18 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async releaseTransactionSender(from: Hash, gasPrice: bigint) {
-    const sender = this.accounts.getItem(from);
-
-    const { hdAccount } = sender;
-
-    const transactionRequest = this.buildSelfTransactionRequest(sender);
-
-    const serializedTransaction = await hdAccount.signTransaction({
-      transactionRequest,
-      gasPrice,
-    });
-
-    const hash = await this.networkService.sendRawTransaction({
-      serializedTransaction,
-    });
-
-    const id = autoId();
-
-    const { to, data, gas } = transactionRequest;
-
-    this.transactions.addItem({
-      id,
-      type: 'plain',
-      state: 'pending',
-      hash,
-      from,
-      to,
-      data,
-      gas,
-      timestamp: Date.now(),
-    });
-
-    this.logger.verbose(`Self transaction #${id} sent`);
-    this.logger.debug({
-      id,
-      hash,
-      from,
-    });
-  }
-
-  async dropPendingTransactions() {
+  /**
+   * Drops pending transactions that exceed the allowed drop time threshold.
+   * Transactions with timestamps beyond the calculated maximum timestamp are
+   * processed, and their state is updated either to 'dropped' or 'queued', based
+   * on the presence of a previous transaction hash. Additionally, the sender of
+   * each processed transaction is released with the current gas price.
+   *
+   * @return {Promise<void>} Resolves when all necessary transactions are
+   * processed and their state updated. Logs messages and errors during the
+   * process.
+   */
+  async dropPendingTransactions(): Promise<void> {
     const { pendingTransactionDropTime } = this.config;
 
     const maxTimestamp = Date.now() + pendingTransactionDropTime * 1000;
@@ -417,6 +483,7 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
         await this.releaseTransactionSender(from, gasPrice);
 
         if (previousHash) {
+          // final drop
           this.transactions.updateItem(
             id,
             {
@@ -427,6 +494,7 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
 
           this.logger.verbose(`Transaction #${id} dropped`);
         } else {
+          // first drop
           this.transactions.updateItem(
             id,
             {
@@ -447,7 +515,21 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async processPendingTransactions() {
+  /**
+   * Processes all pending transactions by verifying their state and updating their status.
+   * The method handles the retrieval and confirmation of transactions, checking if they have been mined
+   * and updating their respective account information and transaction details accordingly.
+   *
+   * The following steps are performed:
+   * 1. Drops all pending transactions from the internal state.
+   * 2. Fetches transactions marked as 'pending' from the state.
+   * 3. Retrieves transaction details and receipts from the network service.
+   * 4. Updates transaction state to 'confirmed' upon successful confirmation.
+   * 5. Updates relevant account information, such as state, balance, and nonce.
+   *
+   * @return {Promise<void>} Resolves when all pending transactions are processed.
+   */
+  async processPendingTransactions(): Promise<void> {
     await this.dropPendingTransactions();
 
     const transactions = this.transactions.getStateItems('pending');
@@ -545,6 +627,49 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
       await this.networkService.getGasPrice(),
       transactionGasPriceMultiplier,
     );
+  }
+
+  private async releaseTransactionSender(
+    from: Hash,
+    gasPrice: bigint,
+  ): Promise<void> {
+    const sender = this.accounts.getItem(from);
+
+    const { hdAccount } = sender;
+
+    const transactionRequest = this.buildSelfTransactionRequest(sender);
+
+    const serializedTransaction = await hdAccount.signTransaction({
+      transactionRequest,
+      gasPrice,
+    });
+
+    const hash = await this.networkService.sendRawTransaction({
+      serializedTransaction,
+    });
+
+    const id = autoId();
+
+    const { to, data, gas } = transactionRequest;
+
+    this.transactions.addItem({
+      id,
+      type: 'plain',
+      state: 'pending',
+      hash,
+      from,
+      to,
+      data,
+      gas,
+      timestamp: Date.now(),
+    });
+
+    this.logger.verbose(`Self transaction #${id} sent`);
+    this.logger.debug({
+      id,
+      hash,
+      from,
+    });
   }
 
   private buildSelfTransactionRequest(sender: RelayerAccount): {
