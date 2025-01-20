@@ -13,6 +13,8 @@ import { loggerConfig } from './logger.config';
   scope: Scope.TRANSIENT,
 })
 export class Logger extends ConsoleLogger {
+  private errorHandler: (err: unknown) => boolean | void = () => false;
+
   constructor(
     @Inject(loggerConfig.KEY)
     config: ConfigType<typeof loggerConfig>,
@@ -26,13 +28,24 @@ export class Logger extends ConsoleLogger {
     this.setLogLevels([logLevel]);
   }
 
+  setErrorHandler(errorHandler: (err: unknown) => boolean | void) {
+    this.errorHandler = errorHandler;
+    return this;
+  }
+
+  catchError(err: unknown) {
+    if (!this.errorHandler(err)) {
+      this.error(err);
+    }
+  }
+
   async wrapAsync<T = unknown>(promise: Promise<T>): Promise<T | null> {
     let result: T | null;
 
     try {
       result = await promise;
     } catch (err) {
-      this.error(err);
+      this.catchError(err);
       result = null;
     }
 
@@ -51,7 +64,7 @@ export class Logger extends ConsoleLogger {
 
         try {
           func()
-            .catch((err) => this.error(err))
+            .catch((err) => this.catchError(err))
             .finally(() => {
               locked = false;
               if (repeat) {
@@ -63,7 +76,7 @@ export class Logger extends ConsoleLogger {
         } catch (err) {
           locked = false;
           repeat = false;
-          this.error(err);
+          this.catchError(err);
         }
       }
     };

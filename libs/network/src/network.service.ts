@@ -47,15 +47,26 @@ export class NetworkService implements OnModuleInit, OnModuleDestroy {
   ) {
     logger.setContext(NetworkService.name);
 
-    const chain = getChain(config?.chain);
+    const { chainName, httpTransportUrl, retryCount, retryDelay, timeout } =
+      config;
+
+    const chain = getChain(chainName);
 
     if (!chain) {
       throw new Error('Unsupported network chain');
     }
 
+    if (!httpTransportUrl) {
+      throw new Error('No network http transport url provided');
+    }
+
     this.client = createPublicClient<HttpTransport, Chain>({
       chain,
-      transport: http(config?.httpTransportUrl),
+      transport: http(config?.httpTransportUrl, {
+        retryCount,
+        retryDelay,
+        timeout,
+      }),
     });
   }
 
@@ -125,6 +136,7 @@ export class NetworkService implements OnModuleInit, OnModuleDestroy {
   sendRawTransaction(params: SendRawTransactionParameters) {
     return this.logger.wrapAsync(this.client.sendRawTransaction(params));
   }
+
   private async fetchBlockNumber() {
     const blockNumber = await this.getBlockNumber();
 

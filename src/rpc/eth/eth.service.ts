@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { EntryPointService, UserOp } from '@app/entry-point';
 import { NetworkService } from '@app/network';
 import { RelayerService } from '@app/relayer';
+import { RpcError } from '../rpc.error';
 
 @Injectable()
 export class EthService {
@@ -22,18 +23,28 @@ export class EthService {
     return [this.entryPointService.address];
   }
 
-  async sendUserOperation(userOp?: UserOp, entryPoint?: Hash) {
-    if (this.entryPointService.address !== entryPoint) {
-      throw new Error('Invalid entry point');
+  sendUserOperation(userOp?: UserOp, entryPoint?: Hash) {
+    if (
+      !userOp ||
+      !entryPoint ||
+      this.entryPointService.address !== entryPoint
+    ) {
+      throw RpcError.InvalidParams;
     }
 
-    const hash = this.entryPointService.hashUserOp(userOp);
+    let hash: Hash;
 
-    const id = this.relayerService.submitTransaction({
+    try {
+      hash = this.entryPointService.hashUserOp(userOp);
+    } catch {
+      throw RpcError.InvalidParams;
+    }
+
+    this.relayerService.submitTransaction({
       type: 'userOp',
       userOp,
     });
 
-    return id ? hash : null;
+    return hash;
   }
 }

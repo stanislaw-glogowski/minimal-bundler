@@ -3,8 +3,14 @@ import { parseAddress } from '@app/utils';
 import { callBundler, createSmartAccounts } from './lib';
 
 export async function main() {
-  const { DEMO_EOA_MIN_BALANCE, DEMO_TX_RECIPIENT, DEMO_TX_VALUE } =
-    process.env;
+  const {
+    ENTRY_POINT_ADDRESS,
+    DEMO_EOA_MIN_BALANCE,
+    DEMO_TX_RECIPIENT,
+    DEMO_TX_VALUE,
+  } = process.env;
+
+  const accountMinBalance = parseEther(DEMO_EOA_MIN_BALANCE || '0.005');
 
   console.log('`eth_chainId`:', await callBundler('eth_chainId'));
   console.log(
@@ -19,10 +25,9 @@ export async function main() {
     value: parseEther(DEMO_TX_VALUE || '0'),
   };
 
-  const accountMinBalance = parseEther(DEMO_EOA_MIN_BALANCE || '0.005');
-
   for (const account of accounts) {
     console.log();
+
     const address = await account.getAccountAddress();
     const balance = await account.getBalances();
 
@@ -42,8 +47,12 @@ export async function main() {
     );
 
     console.log(
-      '`debug_sendUserOperation`:',
-      await callBundler('debug_sendUserOperation', signedUserOp),
+      '`eth_sendUserOperation`:',
+      await callBundler(
+        'eth_sendUserOperation',
+        signedUserOp,
+        ENTRY_POINT_ADDRESS,
+      ),
     );
   }
 }

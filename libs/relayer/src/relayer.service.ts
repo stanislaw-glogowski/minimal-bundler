@@ -194,8 +194,10 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     return id;
   }
 
-  waitForTransaction(id: number, timeoutValue = 30) {
-    return new Promise<RelayerTransaction>((resolve) => {
+  waitForTransaction(id: number) {
+    const { transactionWaitingTimeout } = this.config;
+
+    return new Promise<RelayerTransaction>((resolve, reject) => {
       this.transactions
         .subscribeItem(id)
         .pipe(
@@ -204,13 +206,12 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
         )
         .pipe(
           timeout({
-            each: timeoutValue * 1000,
-            with: () => of(null),
+            each: transactionWaitingTimeout * 1000,
           }),
         )
         .subscribe({
           next: (item) => resolve(item),
-          error: () => resolve(null),
+          error: () => reject(new Error(`Transaction #${id} timeout`)),
         });
     });
   }

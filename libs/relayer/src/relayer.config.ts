@@ -11,6 +11,11 @@ export const relayerConfig = registerAs('relayer', () => ({
   minAccountBalance: parseEther(
     process.env.RELAYER_MIN_ACCOUNT_BALANCE || '0.0001',
   ),
+  transactionWaitingTimeout: parsePositive(
+    process.env.RELAYER_TRANSACTION_WAITING_TIMEOUT,
+    'int',
+    30,
+  ),
   transactionDropTime: parsePositive(
     process.env.RELAYER_TRANSACTION_DROP_TIME,
     'int',

@@ -1,7 +1,8 @@
-import { Hash } from 'viem';
+import { Hash, isAddress, isHex } from 'viem';
 import { Injectable } from '@nestjs/common';
 import { EntryPointService, UserOp } from '@app/entry-point';
 import { RelayerService } from '@app/relayer';
+import { RpcError } from '../rpc.error';
 
 @Injectable()
 export class DebugService {
@@ -12,31 +13,33 @@ export class DebugService {
     //
   }
 
-  async hashUserOp(userOp?: UserOp) {
+  hashUserOp(userOp?: UserOp) {
     return this.entryPointService.hashUserOp(userOp);
   }
 
   async sendUserOp(userOp?: UserOp, waitForCompleted?: boolean) {
+    if (!userOp) {
+      throw RpcError.InvalidParams;
+    }
+
+    try {
+      this.entryPointService.hashUserOp(userOp);
+    } catch {
+      throw RpcError.InvalidParams;
+    }
+
     const id = this.relayerService.submitTransaction({
       type: 'userOp',
       userOp,
     });
 
-    if (!id) {
-      return null;
-    }
-
-    return waitForCompleted ? this.relayerService.waitForTransaction(id) : id;
+    return waitForCompleted ? this.waitForTransaction(id) : id;
   }
 
-  async sendTransaction(
-    params?: {
-      to: Hash; //
-      data: Hash;
-    },
-    waitForCompleted?: boolean,
-  ) {
-    const { to, data } = params;
+  async sendTransaction(to?: Hash, data?: Hash, waitForCompleted?: boolean) {
+    if (!to || !data || !isAddress(to) || !isHex(data)) {
+      throw RpcError.InvalidParams;
+    }
 
     const id = this.relayerService.submitTransaction({
       type: 'plain',
@@ -44,10 +47,18 @@ export class DebugService {
       data,
     });
 
-    if (!id) {
-      return null;
+    return waitForCompleted ? this.waitForTransaction(id) : id;
+  }
+
+  private async waitForTransaction(id: number) {
+    let result: unknown;
+
+    try {
+      result = await this.relayerService.waitForTransaction(id);
+    } catch {
+      throw RpcError.RequestTimeout;
     }
 
-    return waitForCompleted ? this.relayerService.waitForTransaction(id) : id;
+    return result;
   }
 }
