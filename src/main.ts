@@ -7,12 +7,12 @@ import {
 } from '@nestjs/platform-fastify';
 import { ConfigType } from '@nestjs/config';
 import { Logger } from '@app/logger';
-import { ApiModule } from './api.module';
-import { apiConfig } from './api.config';
+import { BundlerModule } from './bundler.module';
+import { bundlerConfig } from './bundler.config';
 
 async function main() {
   const app = await NestFactory.create<NestFastifyApplication>(
-    ApiModule,
+    BundlerModule,
     new FastifyAdapter(),
     {
       bufferLogs: true,
@@ -26,7 +26,9 @@ async function main() {
   app.useGlobalPipes(new ValidationPipe());
 
   try {
-    const { port } = app.get<ConfigType<typeof apiConfig>>(apiConfig.KEY);
+    const { port } = app.get<ConfigType<typeof bundlerConfig>>(
+      bundlerConfig.KEY,
+    );
 
     await app.listen(port, '0.0.0.0', (err, address) => {
       if (err) {

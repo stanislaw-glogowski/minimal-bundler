@@ -1,14 +1,14 @@
 import { EventEmitter } from 'events';
-import { Subject } from 'rxjs';
+import { concat, filter, of, Subject } from 'rxjs';
 
 export interface StateCollectionItem<S extends string = string> {
   state: S;
 }
 
 export class StateCollection<I extends StateCollectionItem> {
-  public readonly items$ = new Subject<I>();
+  readonly items: Array<I> = [];
 
-  public readonly items: Array<I> = [];
+  readonly item$ = new Subject<I>();
 
   private itemsMap = new Map<I[typeof this.keyName], I>();
 
@@ -16,12 +16,19 @@ export class StateCollection<I extends StateCollectionItem> {
 
   private eventEmitter = new EventEmitter();
 
-  constructor(public readonly keyName: keyof I) {
+  constructor(readonly keyName: keyof I) {
     //
   }
 
   getItem(key: I[typeof this.keyName]) {
     return this.itemsMap.get(key);
+  }
+
+  subscribeItem(key: I[typeof this.keyName]) {
+    return concat(
+      of(this.getItem(key)), //
+      this.item$.pipe(filter((item) => item[this.keyName] === key)),
+    );
   }
 
   addItem(item: I) {
@@ -38,19 +45,16 @@ export class StateCollection<I extends StateCollectionItem> {
     return this;
   }
 
-  updateItem(
-    key: I[typeof this.keyName],
-    changes: Pick<I, 'state'> & Omit<Partial<I>, 'state'>,
-  ) {
+  updateItem(key: I[typeof this.keyName], changes: Partial<I>) {
     const item = this.itemsMap.get(key);
 
     if (item) {
-      const { state: oldState } = item;
       const { state: newState } = changes;
+      const { state: oldState } = item;
 
       Object.assign(item, changes);
 
-      if (oldState !== newState) {
+      if (newState && newState !== oldState) {
         const oldItems = this.getStateItemsReference(oldState);
 
         oldItems.splice(oldItems.indexOf(item), 1);
@@ -70,7 +74,6 @@ export class StateCollection<I extends StateCollectionItem> {
 
   on(event: `${I['state']}Appear`, listener: () => void) {
     this.eventEmitter.on(event, listener);
-
     return this;
   }
 
@@ -93,7 +96,7 @@ export class StateCollection<I extends StateCollectionItem> {
   private notify(item: I) {
     const { state } = item;
 
-    this.items$.next(item);
+    this.item$.next(item);
     this.eventEmitter.emit(`${state}Appear`);
   }
 }

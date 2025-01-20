@@ -2,7 +2,6 @@ import { Hash, encodeFunctionData, encodeAbiParameters, keccak256 } from 'viem';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { NetworkService } from '@app/network';
-import { RelayerService } from '@app/relayer';
 import { entryPointAbi } from './entry-point.abi';
 import { entryPointConfig } from './entry-point.config';
 import { UserOp } from './interfaces';
@@ -15,7 +14,6 @@ export class EntryPointService {
     @Inject(entryPointConfig.KEY)
     config: ConfigType<typeof entryPointConfig>,
     private readonly networkService: NetworkService,
-    private readonly relayerService: RelayerService,
   ) {
     const { address } = config;
 
@@ -26,14 +24,16 @@ export class EntryPointService {
     this.address = address;
   }
 
-  buildHandleOpsTransaction(...userOps: UserOp[]) {
-    const { beneficiary } = this.relayerService;
-
+  buildContractTransaction(
+    functionName: 'handleOps',
+    userOps: UserOp[],
+    beneficiary?: Hash | undefined,
+  ) {
     return {
       to: this.address,
       data: encodeFunctionData({
         abi: entryPointAbi,
-        functionName: 'handleOps',
+        functionName,
         args: [
           userOps.map(
             ({
@@ -54,7 +54,7 @@ export class EntryPointService {
               ...userOp,
             }),
           ), //
-          beneficiary,
+          beneficiary || this.address,
         ],
       }),
     };
@@ -62,6 +62,7 @@ export class EntryPointService {
 
   hashUserOp(userOp: UserOp) {
     const { chainId } = this.networkService;
+
     const {
       sender,
       nonce,

@@ -2,13 +2,12 @@
   "name": "minimal-bundler",
   "private": true,
   "scripts": {
+    "demo": "bun run scripts/demo/run.ts",
     "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"libs/**/*.ts\"",
+    "format": "prettier --write \"{libs,scripts,src,test}/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint": "eslint \"{libs,scripts,src,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:e2e": "jest --config ./test/jest-e2e.json"
@@ -74,7 +73,6 @@
       "^@app/logger(|/.*)$": "<rootDir>/libs/logger/src/$1",
       "^@app/network(|/.*)$": "<rootDir>/libs/network/src/$1",
       "^@app/relayer(|/.*)$": "<rootDir>/libs/relayer/src/$1",
-      "^@app/transaction(|/.*)$": "<rootDir>/libs/transaction/src/$1",
       "^@app/utils(|/.*)$": "<rootDir>/libs/utils/src/$1"
     }
   }

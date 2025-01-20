@@ -8,7 +8,7 @@ import {
 } from '@nestjs/platform-fastify';
 import { createSmartAccountClient, SupportedSigner } from '@biconomy/account';
 import { NetworkService, NetworkModule } from '@app/network';
-import { ApiModule } from '../src/api.module';
+import { BundlerModule } from '../src/bundler.module';
 
 // Load environment configuration for the 'test' environment to set required environment variables
 config({
@@ -27,7 +27,7 @@ describe('Demo', () => {
 
   beforeEach(async () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
-      imports: [ApiModule, NetworkModule],
+      imports: [BundlerModule, NetworkModule],
     }).compile();
 
     app = moduleRef.createNestApplication<NestFastifyApplication>(

@@ -14,7 +14,6 @@ import {
   createPublicClient,
   http,
 } from 'viem';
-import { sepolia, hardhat } from 'viem/chains';
 import {
   Inject,
   Injectable,
@@ -23,6 +22,7 @@ import {
 } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Logger } from '@app/logger';
+import { getChain } from '@app/utils';
 import { networkConfig } from './network.config';
 
 @Injectable()
@@ -47,19 +47,10 @@ export class NetworkService implements OnModuleInit, OnModuleDestroy {
   ) {
     logger.setContext(NetworkService.name);
 
-    let chain: Chain;
+    const chain = getChain(config?.chain);
 
-    switch (config?.chain) {
-      case 'sepolia':
-        chain = sepolia;
-        break;
-
-      case 'hardhat':
-        chain = hardhat;
-        break;
-
-      default:
-        throw new Error('Unsupported network chain');
+    if (!chain) {
+      throw new Error('Unsupported network chain');
     }
 
     this.client = createPublicClient<HttpTransport, Chain>({
@@ -107,7 +98,7 @@ export class NetworkService implements OnModuleInit, OnModuleDestroy {
     return this.logger.wrapAsync(this.client.getGasPrice());
   }
 
-  getBalance(params: Pick<GetBalanceParameters, 'address'>) {
+  getBalance(params: GetBalanceParameters) {
     return this.logger.wrapAsync(this.client.getBalance(params));
   }
 
@@ -125,18 +116,15 @@ export class NetworkService implements OnModuleInit, OnModuleDestroy {
     return this.logger.wrapAsync(this.client.getTransactionReceipt(params));
   }
 
-  async sendRawTransaction(params: SendRawTransactionParameters) {
-    return this.logger.wrapAsync(this.client.sendRawTransaction(params));
-  }
-
-  async estimateTransactionGas(
-    params: Pick<EstimateGasParameters, 'to' | 'data'>,
-  ) {
+  async estimateGas(params: EstimateGasParameters) {
     return this.client.estimateGas({
       ...params,
     });
   }
 
+  sendRawTransaction(params: SendRawTransactionParameters) {
+    return this.logger.wrapAsync(this.client.sendRawTransaction(params));
+  }
   private async fetchBlockNumber() {
     const blockNumber = await this.getBlockNumber();
 

@@ -34,7 +34,6 @@ To configure the project, follow these steps:
 ```dotenv
 NETWORK_HTTP_TRANSPORT_URL=https://example-endpoint.io
 RELAYER_ACCOUNTS_MNEMONIC=sample mnemonic phrase goes here
-RELAYER_BENEFICIARY=0x151737e034C6E3b69DAe3665EB0Ed9A21d8eD37F
 ```
 
 ### Example `.env.test.local`:
@@ -49,8 +48,8 @@ DEMO_TX_VALUE=0.0001
 ## Scripts
 
 ```bash
-bun run start:dev # start the dev app in watch mode
-bun run test:e2e  # run a simple end2end test
+bun start # start the dev app in watch mode
+bun run demo
 ```
 
 ## License

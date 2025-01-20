@@ -11,8 +11,6 @@
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "moduleNameMapper": {
-    "@app/bundler/(.*)": "<rootDir>/../libs/bundler/src/$1",
-    "@app/bundler": "<rootDir>/../libs/bundler/src",
     "@app/entry-point/(.*)": "<rootDir>/../libs/entry-point/src/$1",
     "@app/entry-point": "<rootDir>/../libs/entry-point/src",
     "@app/logger/(.*)": "<rootDir>/../libs/logger/src/$1",
@@ -21,8 +19,6 @@
     "@app/network": "<rootDir>/../libs/network/src",
     "@app/relayer/(.*)": "<rootDir>/../libs/relayer/src/$1",
     "@app/relayer": "<rootDir>/../libs/relayer/src",
-    "@app/transaction/(.*)": "<rootDir>/../libs/transaction/src/$1",
-    "@app/transaction": "<rootDir>/../libs/transaction/src",
     "@app/utils/(.*)": "<rootDir>/../libs/utils/src/$1",
     "@app/utils": "<rootDir>/../libs/utils/src"
   }

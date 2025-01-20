@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { RelayerService } from '@app/relayer';
 
 @Controller()
-export class ApiController {
+export class BundlerController {
   constructor(private readonly relayerService: RelayerService) {
     //
   }
@@ -12,9 +12,13 @@ export class ApiController {
     return {
       name: 'bundler',
       version: '0.0.0',
-      relayer: {
-        accounts: this.relayerService.getFormattedAccounts(),
-      },
+    };
+  }
+
+  @Get('relayer')
+  relayer() {
+    return {
+      accounts: this.relayerService.getFormattedAccounts(),
     };
   }
 }

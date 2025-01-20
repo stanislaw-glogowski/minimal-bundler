@@ -42,12 +42,6 @@
       "@app/relayer/*": [
         "libs/relayer/src/*"
       ],
-      "@app/transaction": [
-        "libs/transaction/src"
-      ],
-      "@app/transaction/*": [
-        "libs/transaction/src/*"
-      ],
       "@app/utils": [
         "libs/utils/src"
       ],
