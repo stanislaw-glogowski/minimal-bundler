@@ -21,7 +21,7 @@ To configure the project, follow these steps:
 ```bash
 bun start         # start the dev app
 bun run start:dev # start the dev app in watch mode
-bun run demo
+bun run demo      # run the demo script
 ```
 
 ## License
