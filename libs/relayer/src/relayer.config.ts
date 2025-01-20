@@ -16,8 +16,13 @@ export const relayerConfig = registerAs('relayer', () => ({
     'int',
     30,
   ),
-  transactionDropTime: parsePositive(
-    process.env.RELAYER_TRANSACTION_DROP_TIME,
+  queuedTransactionDropTime: parsePositive(
+    process.env.RELAYER_QUEUED_TRANSACTION_DROP_TIME,
+    'int',
+    30,
+  ),
+  pendingTransactionDropTime: parsePositive(
+    process.env.RELAYER_PENDING_TRANSACTION_DROP_TIME,
     'int',
     30,
   ),

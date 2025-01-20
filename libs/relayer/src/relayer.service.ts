@@ -1,4 +1,4 @@
-import { filter, finalize, of, timeout } from 'rxjs';
+import { filter, finalize, timeout } from 'rxjs';
 import { formatEther, Hash, toHex } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 import {
@@ -216,25 +216,43 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  dropQueuedTransactions() {
+    const { queuedTransactionDropTime } = this.config;
+
+    const maxTimestamp = Date.now() + queuedTransactionDropTime * 1000;
+
+    const transactions = this.transactions
+      .getStateItems('queued')
+      .filter(({ timestamp }) => timestamp > maxTimestamp);
+
+    for (const transaction of transactions) {
+      const { id } = transaction;
+
+      this.transactions.updateItem(
+        id,
+        {
+          state: 'dropped',
+        },
+        true,
+      );
+
+      this.logger.verbose(`Transaction #${id} dropped`);
+    }
+  }
+
   async processQueuedTransactions() {
-    // TODO: remove tx based on timestamp
+    this.dropQueuedTransactions();
 
-    const accounts = this.accounts.getStateItems('idle');
     const transactions = this.transactions.getStateItems('queued');
+    const accounts = this.accounts.getStateItems('idle');
 
-    if (!accounts.length || !transactions.length) {
+    if (!transactions.length || !accounts.length) {
       return;
     }
 
-    const {
-      transactionGasPriceMultiplier, //
-      transactionGasMultiplier,
-    } = this.config;
+    const gasPrice = await this.getGasPrice();
 
-    const gasPrice = mulBigint(
-      await this.networkService.getGasPrice(),
-      transactionGasPriceMultiplier,
-    );
+    const { transactionGasMultiplier } = this.config;
 
     for (const transaction of transactions) {
       const { id } = transaction;
@@ -251,14 +269,16 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
             transactionGasMultiplier,
           );
         } catch (err) {
-          // TODO: handle estimation revert
-
-          this.transactions.updateItem(id, {
-            state: 'reverted',
-          });
+          this.transactions.updateItem(
+            id,
+            {
+              state: 'reverted',
+            },
+            true,
+          );
 
           this.logger.verbose(`Transaction #${id} reverted`);
-          this.logger.error(err);
+          this.logger.warn(err);
           continue;
         }
 
@@ -297,19 +317,21 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
           serializedTransaction,
         });
       } catch (err) {
-        // TODO: handler send revert
-
-        this.transactions.updateItem(id, {
-          state: 'reverted',
-        });
+        this.transactions.updateItem(
+          id,
+          {
+            state: 'reverted',
+          },
+          true,
+        );
 
         this.logger.verbose(`Transaction #${id} reverted`);
-        this.logger.error(err);
+        this.logger.warn(err);
         continue;
       }
 
       if (!hash) {
-        // drop I don't think this case even happen
+        // try again ...
         continue;
       }
 
@@ -333,10 +355,102 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async processPendingTransactions() {
-    const transactions = this.transactions.getStateItems('pending');
+  async releaseTransactionSender(from: Hash, gasPrice: bigint) {
+    const sender = this.accounts.getItem(from);
 
-    // TODO: remove tx based on timestamp
+    const { hdAccount } = sender;
+
+    const transactionRequest = this.buildSelfTransactionRequest(sender);
+
+    const serializedTransaction = await hdAccount.signTransaction({
+      transactionRequest,
+      gasPrice,
+    });
+
+    const hash = await this.networkService.sendRawTransaction({
+      serializedTransaction,
+    });
+
+    const id = autoId();
+
+    const { to, data, gas } = transactionRequest;
+
+    this.transactions.addItem({
+      id,
+      type: 'plain',
+      state: 'pending',
+      hash,
+      from,
+      to,
+      data,
+      gas,
+      timestamp: Date.now(),
+    });
+
+    this.logger.verbose(`Self transaction #${id} sent`);
+    this.logger.debug({
+      id,
+      hash,
+      from,
+    });
+  }
+
+  async dropPendingTransactions() {
+    const { pendingTransactionDropTime } = this.config;
+
+    const maxTimestamp = Date.now() + pendingTransactionDropTime * 1000;
+
+    const transactions = this.transactions
+      .getStateItems('pending')
+      .filter(({ timestamp }) => timestamp > maxTimestamp);
+
+    if (!transactions.length) {
+      return;
+    }
+
+    const gasPrice = await this.getGasPrice();
+
+    for (const transaction of transactions) {
+      try {
+        const { id, from, hash, previousHash } = transaction;
+
+        await this.releaseTransactionSender(from, gasPrice);
+
+        if (previousHash) {
+          this.transactions.updateItem(
+            id,
+            {
+              state: 'dropped',
+            },
+            true,
+          );
+
+          this.logger.verbose(`Transaction #${id} dropped`);
+        } else {
+          this.transactions.updateItem(
+            id,
+            {
+              state: 'queued',
+              from: null,
+              hash: null,
+              previousHash: hash,
+              tx: null,
+            },
+            true,
+          );
+
+          this.logger.verbose(`Transaction #${id} moved to queue`);
+        }
+      } catch (err) {
+        this.logger.error(err);
+      }
+    }
+  }
+
+  async processPendingTransactions() {
+    await this.dropPendingTransactions();
+
+    const transactions = this.transactions.getStateItems('pending');
 
     for (const transaction of transactions) {
       const { id, from, hash } = transaction;
@@ -354,7 +468,7 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
         }
 
         if (!tx?.blockNumber) {
-          // still pending ?
+          // try again ...
           continue;
         }
 
@@ -374,10 +488,14 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
 
       const { nonce } = tx;
 
-      this.transactions.updateItem(id, {
-        state: 'confirmed',
-        txReceipt,
-      });
+      this.transactions.updateItem(
+        id,
+        {
+          state: 'confirmed',
+          txReceipt,
+        },
+        true,
+      );
 
       const { status, gasUsed } = txReceipt;
 
@@ -416,6 +534,37 @@ export class RelayerService implements OnModuleInit, OnModuleDestroy {
         privateKey,
       };
     });
+  }
+
+  private async getGasPrice() {
+    const {
+      transactionGasPriceMultiplier, //
+    } = this.config;
+
+    return mulBigint(
+      await this.networkService.getGasPrice(),
+      transactionGasPriceMultiplier,
+    );
+  }
+
+  private buildSelfTransactionRequest(sender: RelayerAccount): {
+    chainId: number;
+    nonce: number;
+    from: Hash;
+    to: Hash;
+    data: Hash;
+    gas: bigint;
+  } {
+    const { chainId } = this.networkService;
+
+    return {
+      chainId,
+      nonce: sender.nonce,
+      from: sender.address,
+      to: sender.address,
+      data: '0x',
+      gas: 21000n,
+    };
   }
 
   private buildTransactionRequest(

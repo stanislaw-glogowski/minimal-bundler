@@ -40,12 +40,16 @@ export class StateCollection<I extends StateCollectionItem> {
 
     this.getStateItemsReference(state).push(item);
 
-    this.notify(item);
+    this.emitItem(item);
 
     return this;
   }
 
-  updateItem(key: I[typeof this.keyName], changes: Partial<I>) {
+  updateItem(
+    key: I[typeof this.keyName],
+    changes: Partial<I>,
+    unState = false,
+  ) {
     const item = this.itemsMap.get(key);
 
     if (item) {
@@ -59,9 +63,11 @@ export class StateCollection<I extends StateCollectionItem> {
 
         oldItems.splice(oldItems.indexOf(item), 1);
 
-        this.getStateItemsReference(newState).push(item);
+        if (!unState) {
+          this.getStateItemsReference(newState).push(item);
+        }
 
-        this.notify(item);
+        this.emitItem(item);
       }
     }
 
@@ -93,7 +99,7 @@ export class StateCollection<I extends StateCollectionItem> {
     return result;
   }
 
-  private notify(item: I) {
+  private emitItem(item: I) {
     const { state } = item;
 
     this.item$.next(item);

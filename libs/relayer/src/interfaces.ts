@@ -26,13 +26,14 @@ export interface RelayerUserOpTransactionParams {
 }
 
 export interface RelayerCommonTransaction {
-  state: 'queued' | 'pending' | 'reverted' | 'confirmed';
+  state: 'queued' | 'pending' | 'reverted' | 'confirmed' | 'dropped';
   id: number;
   hash?: Hash;
-  from?: Hash;
-  gas?: bigint;
-  tx?: GetTransactionReturnType;
-  txReceipt?: GetTransactionReceiptReturnType;
+  previousHash?: Hash;
+  from?: Hash | null;
+  gas?: bigint | null;
+  tx?: GetTransactionReturnType | null;
+  txReceipt?: GetTransactionReceiptReturnType | null;
   timestamp: number;
 }
 
